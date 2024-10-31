@@ -1,0 +1,14 @@
+{
+    "date":"Thu Oct 31 2024",
+    "guilds":{
+        "{someGuildID}":{
+            "users":[
+                {
+                    "userID":"1111111",
+                    "username":"Jennie",
+                    "msgCount":32
+                }
+            ]
+        }
+    }
+}
