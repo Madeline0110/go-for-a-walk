@@ -1,7 +1,9 @@
-const { Client, Events, GatewayIntentBits } = require('discord.js');
-const config = require("./config.json");
-const fs = require('fs')
-const userMsgCount = require("./userMsgCount.json");
+import { Client, Events, GatewayIntentBits } from 'discord.js';
+import config from "./config.json" assert { type: 'json' };
+import fs from 'fs';
+import userMsgCount from "./userMsgCount.json" assert { type: 'json' };
+
+import {guildExists, userExists, addUser, incUserMsgCount, checkLimit} from './functions.js'
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
 
@@ -18,66 +20,7 @@ if (userMsgCount.date == ""){
     fs.writeFileSync('./userMsgCount.json',JSON.stringify(userMsgCount));
 }
 
-function guildExists(targetGuildID){
-    /**
-     * @param {targetGuildID} string id of guild we are interested in.
-     * @returns true or false, dependingon if guild exists
-     */
 
-    return userMsgCount.guilds.hasOwnProperty(targetGuildID);
-}
-
-function userExists(targetGuildID,targetUserID){
-    /**
-     * @param {targetGuildID} string id of guild we are interested in.
-     * @param {targetUserID} string id of user we are interested in.
-     * @returns {state}, boolean state representing whether or not target user exists in target guild msg logs.
-     */
-
-    let state = false;
-
-    if (userMsgCount.guilds.hasOwnProperty(targetGuildID)){
-        guildUsers = userMsgCount.guilds[targetGuildID].users;
-        for (let i = 0; i < guildUsers.length; i++){
-            if (guildUsers[i].userID === targetUserID){
-                state = true;
-            }
-        }
-    }
-
-    return state;
-}
-
-function addUser(targetGuildID,targetUserID,targetUsername){
-    /** Add a new user to the users array for a given guild
-     * 
-     * @param {targetGuildID} string id of guild we are interested in.
-     * @param {targetUserID} string id of user we are interested in.
-     * @param {targetUsername} string username of user we are interested in.
-     */
-    userMsgCount.guilds[targetGuildID].users.push({ "userID": targetUserID, "username": targetUsername, "msgCount": 1 });
-    fs.writeFileSync('./userMsgCount.json',JSON.stringify(userMsgCount));
-    console.log(`Added new user ID: ${targetUserID} Name: ${targetUsername}`)
-}
-
-function incUserMsgCount(targetGuildID,targetUserID){
-    /** Increment the msgCount attribute for a given user
-     * 
-     * @param {targetGuildID} string id of guild we are interested in.
-     * @param {targetUserID} string id of user we are interested in.
-     */
-
-    const usersArr = userMsgCount.guilds[targetGuildID].users
-    for (let i = 0; i < usersArr.length; i++){
-        if (usersArr[i].userID === targetUserID){
-            usersArr[i].msgCount = usersArr[i].msgCount + 1;
-
-            userMsgCount.guilds[targetGuildID].users = usersArr;
-            fs.writeFileSync('./userMsgCount.json',JSON.stringify(userMsgCount));
-            return;
-        }
-    }
-}
 
 client.on("messageCreate", function(message) {
     
@@ -98,16 +41,22 @@ client.on("messageCreate", function(message) {
     //limit users who can call commands
     if (guildAdminRole === '' || userRoles.includes(guildAdminRole)){
         if (command == "help"){
-            message.reply("There currently exists the following commands:\n* !help - returns list of all commands.\n* !setAdmin - Set the admin role that can call ! commands.\n* !setMsgLimit - Set the limit for which further messages from a user will result in mute / 'take a walk msg'.\n* !toggleMute - Turn muting of users that cross message limit threshold on or off.\n* !setMuteLength - Set mute duration (minutes).\n* !unmute {username/id} - Given a valid username or id input, unmute this user.");
+            message.reply("There currently exists the following commands:\n* !help - returns list of all commands.\n* !setAdmin - Set the admin role that can call ! commands.\n* !setMsgLimit {integer} - Set the limit for which further messages from a user will result in mute / 'take a walk msg'.\n* !toggleMute - Turn muting of users that cross message limit threshold on or off.\n* !setMuteLength {integer} - Set mute duration (minutes).\n* !unmute {username/id} - Given a valid username or id input, unmute this user.\n* !setmsg {string} - Set a custom message for users that cross limit.");
             return;
         }else if (command == "setadmin"){
+            //ensure an input was provided
+            if (args[0] === undefined){
+                message.reply("Please provide an input string.")
+                return;
+            }
+
             userMsgCount.guilds[targetGuildID].adminRole = args[0];
             fs.writeFileSync('./userMsgCount.json',JSON.stringify(userMsgCount));
             message.reply(`Set admin role to ${args[0]}`);
             return;
     
         }else if (command == "setmsglimit"){
-            if (!Number.isInteger(Number(args[0])) || Number(args[0]) <= 0){
+            if (!Number.isInteger(Number(args[0])) || Number(args[0]) <= 0 || args[0] === undefined){
                 message.reply("Invalid input, must be a valid Integer > 0.")
                 return;
             }
@@ -132,7 +81,7 @@ client.on("messageCreate", function(message) {
     
         }else if (command == "setmutelength"){
             // ensure input is valid integer > 0
-            if (!Number.isInteger(Number(args[0])) || Number(args[0]) <= 0){
+            if (!Number.isInteger(Number(args[0])) || Number(args[0]) <= 0 || args[0] === undefined){
                 message.reply("Invalid input, must be a valid Integer > 0.")
                 return;
             }
@@ -144,6 +93,10 @@ client.on("messageCreate", function(message) {
         }else if (command == "unmute"){
         
         }else if (command == "setmsg"){
+            if (args[0] === undefined){
+                message.reply("Please provide an input string.")
+                return;
+            }
             userMsgCount.guilds[targetGuildID].touchGrassMSG = args[0];
             fs.writeFileSync('./userMsgCount.json',JSON.stringify(userMsgCount));
             message.reply(`Set custom message to ${args[0]}`);
@@ -166,7 +119,7 @@ client.on("messageCreate", function(message) {
     }
 
     // check if guild for msg doesnt exist
-    if (!guildExists(targetGuildID)){
+    if (!guildExists(userMsgCount,targetGuildID)){
         userMsgCount.guilds[targetGuildID] = {
             "adminRole": "",
             "msgLimit": 100,
@@ -178,14 +131,19 @@ client.on("messageCreate", function(message) {
         fs.writeFileSync('./userMsgCount.json',JSON.stringify(userMsgCount));
     }
     // check if user exists in a given guild
-    else if (!userExists(targetGuildID, targetUserID)){
-        addUser(targetGuildID,targetUserID,targetUsername);
+    else if (!userExists(userMsgCount,targetGuildID, targetUserID)){
+        addUser(userMsgCount,targetGuildID,targetUserID,targetUsername);
     } else{
         //if user does exist then increment their msgCount counter
-        incUserMsgCount(targetGuildID,targetUserID);
+        incUserMsgCount(userMsgCount,targetGuildID,targetUserID);
+        if (checkLimit(userMsgCount,targetGuildID,targetUserID)){
+            if (userMsgCount.guilds[targetGuildID].muteState){
+                //mute the user
+            }
+
+            message.reply(userMsgCount.guilds[targetGuildID].touchGrassMSG);
+        }
     }
-
-
 
   });
 
