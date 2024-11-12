@@ -1,14 +1,19 @@
 {
-    "date":"Thu Oct 31 2024",
-    "guilds":{
-        "{someGuildID}":{
-            "users":[
-                {
-                    "userID":"1111111",
-                    "username":"Jennie",
-                    "msgCount":32
-                }
-            ]
+  "date": "Thu Oct 31 2024",
+  "guilds": {
+    "{someGuildID}": {
+    "adminRole": "",
+    "msgLimit": 200,
+    "muteState": false,
+    "muteLength": 10,
+    "touchGrassMSG": "Go for a walk.",
+      "users": [
+        {
+          "userID": "1111111",
+          "username": "Jennie",
+          "msgCount": 32
         }
+      ]
     }
+  }
 }
